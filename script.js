@@ -1,7 +1,11 @@
 const express = require("express");
 const app = express();
-const fs = require("fs");
+const fs = require("fs"); //manuseia os arrquivos
 const bodyParser = require ("body-parser")
+const pdfdoc = require ('pdfkit'); // escreve o pdf
+const pdfparse = require ('pdf-parse');  //transforma o pdf
+
+var historico = "";
 
 app.use(bodyParser.urlencoded({extended: true}))
 
@@ -9,7 +13,7 @@ app.use(bodyParser.urlencoded({extended: true}))
 
 app.get("/", function(req, res){
 
-    res.sendFile(__dirname + "/index.html");
+    res.sendFile(__dirname + "/");
 })
 
 // Ao enviar, como o método é "post" ele redireciona o usuário, mas pega os inputs
@@ -18,34 +22,62 @@ app.post("/viagem", function(req,res){
 
     // Aqui eu envio o usuário para uma página de conclusão do formulário
 
-    //res.sendFile(__dirname + "/viagens.html");
-
-    res.sendFile("C:/Codigos/Viagens.txt");
+    res.sendFile(__dirname, + '/Enviado.html');
 
     // Aqui eu pego os inputs pelo nome que eu os dei no body do html
 
-    const motorista = req.body.mot;
-    const paciente = req.body.pac;
-    const carro = req.body.car
+    var motorista = req.body.mot;
+    var paciente = req.body.pac;
+    var carro = req.body.car;
+    var data = req.body.dat;
+    var local = req.body.loc;
 
-    //Aqui eu crio o texto que vou armazenar para o arquivo viagens
+    //Aqui eu declaro o pdf depois crio o documento
 
-    const viagem = "Motorista: " + motorista + " Paciente: " + paciente + " Carro: " + carro + "\n";
+    const pdf = new pdfdoc();
+    const nomeArquivo = 'Viagens.pdf';
 
-    //Aqui eu crio e adiciono conteudo ao arquivo texto da viagem
- try{
-    fs.writeFileSync("Viagens.txt", viagem, {flag: 'a+'});
-            console.log("Viagem Adicionada");
-            viagem = "01";
-            }
-            catch (err) {
-                console.log("Erro: " + err);
-            };
+        //Aqui eu leio o pdf para que ao receber outro input, não seja sobrescrito 
 
-    // Aqui eu mostro no console do servidor para garantir que está rodando
+        var buffer = fs.readFileSync('C:/Codigos/Viagens.pdf');
 
-    console.log("Motorista, Paciente, Carro: " + motorista, paciente, carro);
+        //Mas ele vai vir encriptado, então traduzimos ele para string
+    
+        pdfparse(buffer).then(function(conteudo){
+            
+            historico = conteudo.text;
+            console.log(historico);
+
+                //Aqui eu adiciono conteúdo ao pdf
+
+                pdf.pipe(fs.createWriteStream(nomeArquivo));
+                
+                pdf
+                .fontSize(14)
+                .text (historico, 50,70) // apresento o que já foi escrito
+                .text('Motorista: '+ motorista + ' Carro: ' + carro + ' Paciente: ' + paciente + ' Local: ' + local + ' Data: ' + data, 50,70); // cadastro novo
+
+
+                
+                pdf.end();
+
+    
+        }).catch((err) => {
+            console.error("Erro ao ler pdf", err);
+        });
+
+    res.redirect("/viagem");
+    
 })
+
+//Crio a página de envio realizado
+
+app.get("/viagem", (req,res)=>{
+
+    res.sendFile(__dirname + "/Enviado.html");
+
+});
+//
 
 // Aqui eu rodo o servidor
 
